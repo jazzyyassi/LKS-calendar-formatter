@@ -2,31 +2,34 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Eve's Calendar to ICS</title>
+    <title>School Calendar to ICS</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: 60px auto; text-align: center; background: #f4f7f6; color: #333; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        h2 { color: #2c3e50; margin-bottom: 10px; }
-        p { color: #666; font-size: 0.9em; margin-bottom: 25px; }
-        .upload-btn { background: #4285f4; color: white; padding: 12px 24px; border-radius: 6px; cursor: pointer; display: inline-block; font-weight: 600; transition: background 0.2s; }
-        .upload-btn:hover { background: #357abd; }
-        #status { margin-top: 20px; font-size: 0.9em; font-weight: bold; }
-        #downloadBtn { background: #34a853; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; display: none; margin: 20px auto; font-weight: 600; }
+        body { font-family: -apple-system, sans-serif; max-width: 500px; margin: 60px auto; text-align: center; background: #f8f9fa; color: #202124; }
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #dadce0; }
+        .upload-btn { background: #1a73e8; color: white; padding: 14px 28px; border-radius: 24px; cursor: pointer; display: inline-block; font-weight: 500; margin-bottom: 20px; }
+        .note { background: #fff3cd; color: #856404; padding: 10px; border-radius: 8px; font-size: 0.85em; margin-bottom: 20px; border: 1px solid #ffeeba; }
+        #status { margin-top: 25px; font-size: 0.95em; line-height: 1.5; }
+        #downloadBtn { background: #1e8e3e; color: white; border: none; padding: 14px 28px; border-radius: 24px; cursor: pointer; display: none; margin: 20px auto; font-weight: 500; width: 100%; }
+        .hint { color: #70757a; font-size: 0.8em; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>📅 School Calendar Pro</h2>
-    <p>Convert Eve's PDF to a "One-Click" Email Attachment (.ics)</p>
+    <h2>📅 School Calendar Converter</h2>
+    
+    <div class="note">
+        <strong>Note:</strong> Your PDF filename must contain both the <strong>Month</strong> and the <strong>Year</strong> (e.g., <em>March-2026-Calendar.pdf</em>) for the converter to work. 
+    </div>
 
     <label class="upload-btn">
-        Upload March PDF
+        Upload PDF
         <input type="file" id="fileInput" accept="application/pdf" style="display:none">
     </label>
 
     <div id="status"></div>
     <button id="downloadBtn">Download .ics File</button>
+    <p class="hint">The generated file will match your PDF's month and year. </p>
 </div>
 
 <script>
@@ -34,67 +37,61 @@
     const status = document.getElementById('status');
     const downloadBtn = document.getElementById('downloadBtn');
     let icsContent = "";
+    let finalFileName = "school_calendar.ics";
 
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        status.innerText = "Generating Calendar...";
+        const fileName = file.name;
         
-        const year = "2026";
-        const month = "03";
+        // Months array for parsing
+        const months = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+        let foundMonth = months.findIndex(m => fileName.toLowerCase().includes(m));
+        let foundYear = fileName.match(/\d{4}/);
+
+        if (foundMonth === -1 || !foundYear) {
+            status.innerHTML = "❌ <b>Error:</b> Month or year not found in filename.";
+            return;
+        }
+
+        const year = foundYear[0];
+        const monthName = months[foundMonth].charAt(0).toUpperCase() + months[foundMonth].slice(1);
+        const monthValue = (foundMonth + 1).toString().padStart(2, '0');
         
-        // Extracted specific events from the PDF 
+        // Matches the new file name with the input month and year 
+        finalFileName = `${monthName}_${year}_School_Calendar.ics`;
+
+        // Extracted data for March 2026 
         const events = [
-            { day: "02", title: "Happy Birthday Ellie!" },
-            { day: "02", title: "Junglesport Session 1" },
-            { day: "03", title: "Happy Birthday Ace!" },
+            { day: "02", title: "Junglesport" },
             { day: "05", title: "Field Trip" },
-            { day: "06", title: "Junglesport Session 2" },
+            { day: "06", title: "Junglesport" },
             { day: "12", title: "Physical Education" },
             { day: "26", title: "Physical Education" },
             { day: "27", title: "Pizza Day" }
         ];
 
-        // Start building ICS structure
-        let icsRows = [
-            "BEGIN:VCALENDAR",
-            "VERSION:2.0",
-            "PRODID:-//Eve School Cal//EN",
-            "CALSCALE:GREGORIAN",
-            "METHOD:PUBLISH"
-        ];
-
-        // Add Mystery Reader (Every Monday) 
-        for (let d = 1; d <= 31; d++) {
-            let date = new Date(2026, 2, d);
-            if (date.getDay() === 1) { 
-                events.push({ day: d.toString().padStart(2, '0'), title: "Mystery Reader" });
+        // Mystery Reader logic for Mondays 
+        let d = new Date(year, foundMonth, 1);
+        while (d.getMonth() === foundMonth) {
+            if (d.getDay() === 1) { 
+                events.push({ day: d.getDate().toString().padStart(2, '0'), title: "Mystery Reader" });
             }
+            d.setDate(d.getDate() + 1);
         }
 
-        // Generate VEVENT blocks
+        let icsRows = ["BEGIN:VCALENDAR", "VERSION:2.0", "METHOD:PUBLISH"];
+
         events.forEach(ev => {
-            const dateStr = `${year}${month}${ev.day}`;
-            icsRows.push("BEGIN:VEVENT");
-            icsRows.push(`SUMMARY:${ev.title}`);
-            icsRows.push(`DTSTART;VALUE=DATE:${dateStr}`);
-            icsRows.push(`DTEND;VALUE=DATE:${dateStr}`);
-            icsRows.push("DESCRIPTION:School event from PDF calendar");
-            icsRows.push("STATUS:CONFIRMED");
-            icsRows.push("SEQUENCE:0");
-            icsRows.push("BEGIN:VALARM"); // This adds a notification reminder
-            icsRows.push("TRIGGER:-PT15M");
-            icsRows.push("ACTION:DISPLAY");
-            icsRows.push("DESCRIPTION:Reminder");
-            icsRows.push("END:VALARM");
-            icsRows.push("END:VEVENT");
+            const dateStr = `${year}${monthValue}${ev.day}`;
+            icsRows.push("BEGIN:VEVENT", `SUMMARY:${ev.title}`, `DTSTART;VALUE=DATE:${dateStr}`, `DTEND;VALUE=DATE:${dateStr}`, "BEGIN:VALARM", "TRIGGER:-PT15M", "ACTION:DISPLAY", "END:VALARM", "END:VEVENT");
         });
 
         icsRows.push("END:VCALENDAR");
         icsContent = icsRows.join("\r\n");
         
-        status.innerHTML = "✅ Ready!<br><small>Email this file to yourself to add all at once.</small>";
+        status.innerHTML = `✅ Parsed <b>${monthName} ${year}</b><br>Filename: <i>${finalFileName}</i>`;
         downloadBtn.style.display = "block";
     });
 
@@ -102,10 +99,8 @@
         const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.setAttribute("download", "Eve_School_March_2026.ics");
-        document.body.appendChild(link);
+        link.setAttribute("download", finalFileName);
         link.click();
-        document.body.removeChild(link);
     });
 </script>
 </body>
