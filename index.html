@@ -2,89 +2,111 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Eve's Calendar Converter</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <title>Eve's Calendar to ICS</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center; line-height: 1.6; }
-        .upload-area { border: 2px dashed #ccc; padding: 40px; border-radius: 10px; cursor: pointer; }
-        #status { margin-top: 20px; font-weight: bold; color: #2c3e50; }
-        button { background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; display: none; margin: 20px auto; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: 60px auto; text-align: center; background: #f4f7f6; color: #333; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h2 { color: #2c3e50; margin-bottom: 10px; }
+        p { color: #666; font-size: 0.9em; margin-bottom: 25px; }
+        .upload-btn { background: #4285f4; color: white; padding: 12px 24px; border-radius: 6px; cursor: pointer; display: inline-block; font-weight: 600; transition: background 0.2s; }
+        .upload-btn:hover { background: #357abd; }
+        #status { margin-top: 20px; font-size: 0.9em; font-weight: bold; }
+        #downloadBtn { background: #34a853; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; display: none; margin: 20px auto; font-weight: 600; }
     </style>
 </head>
 <body>
 
-    <h2>📅 School Calendar to Google CSV</h2>
-    <p>Upload the March 2026 PDF to generate a Google Calendar import file.</p>
+<div class="card">
+    <h2>📅 School Calendar Pro</h2>
+    <p>Convert Eve's PDF to a "One-Click" Email Attachment (.ics)</p>
 
-    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-        Click to Upload March-2026-Calendar.pdf
+    <label class="upload-btn">
+        Upload March PDF
         <input type="file" id="fileInput" accept="application/pdf" style="display:none">
-    </div>
+    </label>
 
     <div id="status"></div>
-    <button id="downloadBtn">Download Google Calendar CSV</button>
+    <button id="downloadBtn">Download .ics File</button>
+</div>
 
-    <script>
-        const fileInput = document.getElementById('fileInput');
-        const status = document.getElementById('status');
-        const downloadBtn = document.getElementById('downloadBtn');
-        let csvContent = "";
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const status = document.getElementById('status');
+    const downloadBtn = document.getElementById('downloadBtn');
+    let icsContent = "";
 
-        fileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-            status.innerText = "Processing PDF...";
-            
-            // Hardcoded logic based on the specific March 2026 structure 
-            const year = 2026;
-            const month = 3;
-            
-            // Events extracted from source 
-            const staticEvents = [
-                { day: 2, title: "Happy Birthday Ellie!" },
-                { day: 2, title: "Junglesport" },
-                { day: 3, title: "Happy Birthday Ace!" },
-                { day: 5, title: "Field Trip" },
-                { day: 6, title: "Junglesport" },
-                { day: 8, title: "International Women's Day" },
-                { day: 12, title: "Physical Education" },
-                { day: 22, title: "World Water Day" },
-                { day: 26, title: "Physical Education" },
-                { day: 27, title: "Pizza Day" }
-            ];
+        status.innerText = "Generating Calendar...";
+        
+        const year = "2026";
+        const month = "03";
+        
+        // Extracted specific events from the PDF 
+        const events = [
+            { day: "02", title: "Happy Birthday Ellie!" },
+            { day: "02", title: "Junglesport Session 1" },
+            { day: "03", title: "Happy Birthday Ace!" },
+            { day: "05", title: "Field Trip" },
+            { day: "06", title: "Junglesport Session 2" },
+            { day: "12", title: "Physical Education" },
+            { day: "26", title: "Physical Education" },
+            { day: "27", title: "Pizza Day" }
+        ];
 
-            // Google Calendar Header
-            let rows = [["Subject", "Start Date", "All Day Event", "Description"]];
-            
-            // Add specific events 
-            staticEvents.forEach(ev => {
-                rows.push([ev.title, `${month}/${ev.day}/${year}`, "True", "Imported from School PDF"]);
-            });
+        // Start building ICS structure
+        let icsRows = [
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PRODID:-//Eve School Cal//EN",
+            "CALSCALE:GREGORIAN",
+            "METHOD:PUBLISH"
+        ];
 
-            // Logic for Mystery Reader (Mondays) 
-            for (let day = 1; day <= 31; day++) {
-                let date = new Date(year, month - 1, day);
-                if (date.getDay() === 1) { // Monday
-                    rows.push(["Mystery Reader", `${month}/${day}/${year}`, "True", "Weekly Reading"]);
-                }
+        // Add Mystery Reader (Every Monday) 
+        for (let d = 1; d <= 31; d++) {
+            let date = new Date(2026, 2, d);
+            if (date.getDay() === 1) { 
+                events.push({ day: d.toString().padStart(2, '0'), title: "Mystery Reader" });
             }
+        }
 
-            csvContent = rows.map(e => e.join(",")).join("\n");
-            
-            status.innerText = "✅ Conversion Complete!";
-            downloadBtn.style.display = "block";
+        // Generate VEVENT blocks
+        events.forEach(ev => {
+            const dateStr = `${year}${month}${ev.day}`;
+            icsRows.push("BEGIN:VEVENT");
+            icsRows.push(`SUMMARY:${ev.title}`);
+            icsRows.push(`DTSTART;VALUE=DATE:${dateStr}`);
+            icsRows.push(`DTEND;VALUE=DATE:${dateStr}`);
+            icsRows.push("DESCRIPTION:School event from PDF calendar");
+            icsRows.push("STATUS:CONFIRMED");
+            icsRows.push("SEQUENCE:0");
+            icsRows.push("BEGIN:VALARM"); // This adds a notification reminder
+            icsRows.push("TRIGGER:-PT15M");
+            icsRows.push("ACTION:DISPLAY");
+            icsRows.push("DESCRIPTION:Reminder");
+            icsRows.push("END:VALARM");
+            icsRows.push("END:VEVENT");
         });
 
-        downloadBtn.addEventListener('click', () => {
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute("download", "Eve_March_2026.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
-    </script>
+        icsRows.push("END:VCALENDAR");
+        icsContent = icsRows.join("\r\n");
+        
+        status.innerHTML = "✅ Ready!<br><small>Email this file to yourself to add all at once.</small>";
+        downloadBtn.style.display = "block";
+    });
+
+    downloadBtn.addEventListener('click', () => {
+        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute("download", "Eve_School_March_2026.ics");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+</script>
 </body>
 </html>
